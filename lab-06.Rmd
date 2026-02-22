@@ -1,7 +1,7 @@
 ---
 title: "Lab 06 - Ugly charts and Simpson's paradox"
-author: "Insert your name here"
-date: "Insert date here"
+author: "Barbara Mu"
+date: "02/18/2026"
 output: github_document
 ---
 
@@ -13,22 +13,186 @@ library(dsbox)
 library(mosaicData) 
 ```
 
-### Exercise 1
+```{r}
+library(usethis)
+use_git_config(
+  user.name = "Your Name",
+  user.email = "your.email@address.com"
+)
+```
 
-Remove this text, and add your answer for Exercise 1 here.
-Add code chunks as needed.
-Don't forget to label your code chunk.
-Do not use spaces in code chunk labels.
+```{r}
+staff <- read_csv("data/instructional-staff.csv")
+```
 
-### Exercise 2
+```{r}
+staff_long <- staff %>%
+  pivot_longer(cols = -faculty_type, names_to = "year") %>%
+  mutate(value = as.numeric(value))
+staff_long
+```
 
-Remove this text, and add your answer for Exercise 1 here.
-Add code chunks as needed.
-Don't forget to label your code chunk.
-Do not use spaces in code chunk labels.
+```{r}
+staff_long %>%
+  ggplot(aes(x = year, y = value, color = faculty_type)) +
+  geom_line()
+```
 
-### Exercise 3
+```{r}
+staff_long %>%
+  ggplot(aes(
+    x = year,
+    y = value,
+    group = faculty_type,
+    color = faculty_type
+  )) +
+  geom_line()
+```
 
-...
+### Exercise 1 - Instructional staff employment trends
 
-Add exercise headings as needed.
+```{r}
+staff_long %>%
+  ggplot(aes(
+    x = year,
+    y = value,
+    group = faculty_type,
+    color = faculty_type
+  )) +
+  geom_line() + 
+  labs(
+    title = "Percentage of hires of different type of faculty for each year",
+    x = "Year",
+    y = "Percentage of hires of Faculty", 
+    ) + 
+  guides(color = guide_legend(title = "Faculty Type"))
+```
+
+### Exercise 2 - Instructional staff employment trends
+
+I will assign Part-Time Faculty a more obvious color and bold it. 
+
+### Exercise 3 - Fisheries
+
+The two plots both didn't effectively communicate fisheries production data for several reasons. First, the 3D pie chart makes it's impossible to accurately compare production magnitudes across countries. Compounding this issue, both plots include far too many countries, creating visual clutter that overwhelms the readers. Second, the bar plot's x-axis range extends to 90 milion tons, which is driven entirely by China, causing most other countries' bars to appear nearly indistinguishable from zero and rendering meaningful comparison impossible. Third, the bar plot's legend is missing labels, leaving the readers unable to determine which color corresponds to capture fishing or aquaculture. 
+
+```{r}
+fisheries <- read_csv("data/fisheries.csv")
+```
+
+```{r}
+fisheries_long <- fisheries %>% 
+  filter(total > 100000) %>% 
+  pivot_longer(cols = c(capture, aquaculture), 
+               names_to = "type", values_to = "tons")
+```
+
+```{r}
+# Show top 20 countries to keep it readable
+top_countries <- fisheries %>%
+  filter(total > 100000) %>%
+  slice_max(total, n = 20) %>%
+  pull(country)
+top_countries
+```
+
+```{r}
+fisheries_long %>% 
+  filter(country %in% top_countries) %>% 
+  ggplot(aes(x = tons, y = fct_reorder(country, tons, sum), fill = type)) + 
+  geom_col() + 
+  scale_fill_manual(
+    values = c("capture" = "gray", "aquaculture" = "lightblue"),
+    labels = c("Capture", "Aquaculture")
+  ) +
+  labs(
+    title = "Top 20 Countries by Total Fisheries Production in 2016",
+    x = "Production (tons)",
+    y = "Country",
+    fill = "Production Type") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+### Whickham 
+```{r}
+library(tidyverse)
+library(mosaicData)
+```
+
+```{r}
+data(Whickham)
+```
+
+```{r}
+?Whickham
+library(performance)
+#performance::compare_performance() # might not be behaving as intented.
+```
+
+### Exercise 1 
+I think it is from an observational study because participants were not randomly assigned to smoke or not. Smoking status was recorded as it naturally occurred. 
+
+### Exercise 2 
+There are 1314 observations, each representing individual participant. 
+
+### Exercise 3 
+There are 3 variables - `outcome`, `smoker`, `age`. 
+
+```{r}
+ggplot(Whickham, aes(x = outcome, fill = outcome)) + 
+  geom_bar() + 
+  labs(title = "Distribution of Health Outcome")
+
+ggplot(Whickham, aes(x = smoker, fill = smoker)) +
+  geom_bar() + theme_minimal() + labs(title = "Distribution of Smoker Status")
+
+ggplot(Whickham, aes(x = age)) +
+  geom_histogram() +
+  theme_minimal() + labs(title = "Age Distribution")
+
+```
+
+### Exercise 4 
+We expect smokers to have worse health outcomes.
+
+### Exercise 5 
+
+```{r}
+Whickham %>%
+  count(smoker, outcome) %>% 
+  group_by(smoker) %>% 
+  mutate(prop = n / sum(n)) %>% 
+  ggplot(aes(x = smoker, y = prop, fill = outcome)) + 
+  geom_col() +
+  labs(title = "Health Outcome by Smoking Status",
+    x = "Smoker", y = "Proportion", fill = "Outcome") +
+  theme_minimal()
+```
+
+### Exercise 6 
+```{r}
+Whickham <- Whickham %>%
+  mutate(age_cat = case_when(
+    age <= 44 ~ "18-44",
+    age > 44 & age <= 64 ~ "45-64",
+    age > 64 ~ "65+"
+  ))
+```
+
+### Exercise 7
+
+```{r}
+Whickham %>% 
+count(smoker, age_cat, outcome) %>% 
+  group_by(smoker, age_cat) %>% 
+  mutate(prop = n / sum(n)) %>% 
+  ggplot(aes(x = smoker, y = prop, fill = outcome)) + 
+  geom_col() +
+  facet_wrap(~age_cat) +
+  labs(title = "Health Outcome by Smoking Status across Different Age Groups",
+    x = "Smoker", y = "Proportion", fill = "Outcome") +
+  theme_minimal()
+```
+
+The results we got is reversed - smoker have worse outcomes than non-smokers of the same age. This reversed results indicates that an aggregate trend disappears or reverses when data are broken down by another variable, like age here. Age masked the true relationship between smoking and health outcomes in the analysis, and only by controlling for age we could recover the true patterns. 
